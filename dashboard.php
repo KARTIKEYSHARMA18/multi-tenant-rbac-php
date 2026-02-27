@@ -27,7 +27,7 @@ if (mysqli_num_rows($result) === 0) {
 }
 
 $user = mysqli_fetch_assoc($result);
-
+echo $_SESSION['user_role'];
 mysqli_stmt_close($stmt);
 mysqli_close($conn);
 ?>
