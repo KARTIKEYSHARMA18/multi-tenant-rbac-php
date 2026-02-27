@@ -1,11 +1,5 @@
 <?php
-session_start();
-
-if (!isset($_SESSION['user_id'])) {
-    header("Location: auth/signin.php");
-    exit;
-}
-
+require_once __DIR__ . '/includes/auth_check.php';
 require_once __DIR__ . '/config/db.php';
 
 $user_id = $_SESSION['user_id'];
@@ -27,7 +21,7 @@ if (mysqli_num_rows($result) === 0) {
 }
 
 $user = mysqli_fetch_assoc($result);
-echo $_SESSION['user_role'];
+
 mysqli_stmt_close($stmt);
 mysqli_close($conn);
 ?>
@@ -43,8 +37,13 @@ mysqli_close($conn);
     <div class=" container">
         <h1>welcome, <?= htmlspecialchars($user['name'])?></h1>
         <p><strong>Email:</strong> <?= htmlspecialchars($user['email'])?></p>
+        <p><strong>Role:</strong> <?= htmlspecialchars($_SESSION['user_role']) ?></p>
         <br>
         <a href = "auth/logout.php">Logout</a>
+        <?php if ($_SESSION['user_role'] === 'admin'): ?>
+        <br><br>
+        <a href="admin/admin.php">Go to Admin Panel</a>
+        <?php endif; ?>
     </div>
     
 </body>
