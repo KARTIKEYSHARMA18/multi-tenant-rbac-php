@@ -1,9 +1,43 @@
-<?php 
-require_once __DIR__ . '/../includes/admin_check.php';
+<?php
+session_start();
+
+require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
-$sql = "SELECT id, name , email, role FROM users";
-$result= mysqli_query($conn, $sql);
+
+/* -------------------------
+   1. Permission Enforcement
+-------------------------- */
+
+if (!hasPermission('view_users')) {
+    die("Unauthorized Access");
+}
+
+/* -------------------------
+   2. Fetch Users With Role Name
+   (No old role column usage)
+-------------------------- */
+
+$sql = "
+    SELECT users.id, users.name, users.email, roles.name AS role_name
+    FROM users
+    JOIN roles ON users.role_id = roles.id
+    ORDER BY users.id ASC
+";
+
+$result = mysqli_query($conn, $sql);
+
+if (!$result) {
+    die("Database Error");
+}
 ?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Users</title>
+</head>
+<body>
+
 <h2>All Users</h2>
 
 <!-- Flash Messages -->
@@ -20,8 +54,6 @@ $result= mysqli_query($conn, $sql);
     <p style="color:red;">
         <?php
         if ($_GET['error'] === 'selfdelete') echo "You cannot delete yourself.";
-        if ($_GET['error'] === 'delete_admin') echo "You cannot delete another admin.";
-        if ($_GET['error'] === 'cannot_edit_admin') echo "You cannot edit another admin.";
         if ($_GET['error'] === 'notfound') echo "User not found.";
         ?>
     </p>
@@ -35,37 +67,44 @@ $result= mysqli_query($conn, $sql);
         <th>Role</th>
         <th>Action</th>
     </tr>
-    <?php while($row = mysqli_fetch_assoc($result)) : ?>
+
+    <?php while ($row = mysqli_fetch_assoc($result)) : ?>
         <tr>
-            <td><?= $row['id']; ?></td>
+            <td><?= (int) $row['id']; ?></td>
             <td><?= htmlspecialchars($row['name']); ?></td>
             <td><?= htmlspecialchars($row['email']); ?></td>
-            <td><?= htmlspecialchars($row['role']); ?></td>
+            <td><?= htmlspecialchars($row['role_name']); ?></td>
             <td>
-                <?php if ($row['role'] !== 'admin'): ?>
-                    
-                    <!-- Edit Button -->
-                    <a href="edit_user.php?id=<?= $row['id']; ?>">
-                        Edit
-                    </a>
 
+                <?php if (hasPermission('edit_user')): ?>
+                    <a href="edit_user.php?id=<?= (int) $row['id']; ?>">Edit</a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('edit_user') && hasPermission('delete_user')): ?>
                     |
+                <?php endif; ?>
 
-                    <!-- Delete Button -->
-                    <form action="delete_user.php?id=<?= $row['id']; ?>" method="post" style="display:inline;">
+                <?php if (hasPermission('delete_user')): ?>
+                    <form action="delete_user.php" method="POST" style="display:inline;">
+                        <input type="hidden" name="id" value="<?= (int) $row['id']; ?>">
                         <button type="submit" onclick="return confirm('Are you sure?')">
-                        Delete
+                            Delete
                         </button>
                     </form>
-
-
-                <?php else: ?>
-                    <span style="color:gray;">Protected</span>
                 <?php endif; ?>
+
+                <?php if (!hasPermission('edit_user') && !hasPermission('delete_user')): ?>
+                    <span style="color:gray;">No Actions</span>
+                <?php endif; ?>
+
             </td>
         </tr>
-        <?php endwhile;?>
+    <?php endwhile; ?>
 
 </table>
+
 <br>
-<a href = "admin.php">Back to admin page</a>
+<a href="admin.php">Back to admin page</a>
+
+</body>
+</html>

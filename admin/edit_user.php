@@ -1,29 +1,62 @@
 <?php
-require_once __DIR__ . '/../includes/admin_check.php';
+session_start();
+
+require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
-if(!isset($_GET['id']) || !is_numeric($_GET['id'])){
+/* -------------------------
+   1. Permission Enforcement
+-------------------------- */
+
+if (!hasPermission('edit_user')) {
+    die("Unauthorized Access");
+}
+
+/* -------------------------
+   2. Validate ID
+-------------------------- */
+
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: list.php");
     exit;
 }
+
 $user_id = (int) $_GET['id'];
-$stmt = mysqli_prepare($conn, "SELECT id, name, email, role FROM users WHERE id = ?");
+
+/* -------------------------
+   3. Fetch User
+-------------------------- */
+
+$stmt = mysqli_prepare(
+    $conn,
+    "SELECT id, name, email, role_id FROM users WHERE id = ?"
+);
+
 mysqli_stmt_bind_param($stmt, "i", $user_id);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 $user = mysqli_fetch_assoc($result);
 mysqli_stmt_close($stmt);
-if(!$user){
+
+if (!$user) {
     header("Location: list.php?error=notfound");
     exit;
 }
 
-$errors=[];
+/* -------------------------
+   4. Fetch All Roles
+-------------------------- */
+
+$roles_result = mysqli_query($conn, "SELECT id, name FROM roles ORDER BY id ASC");
+
+$errors = [];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-     $name  = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $role  = $_POST['role'] ?? '';
-    
+
+    $name    = trim($_POST['name'] ?? '');
+    $email   = trim($_POST['email'] ?? '');
+    $role_id = $_POST['role_id'] ?? '';
+
     /* ---- Validation ---- */
 
     if ($name === '') {
@@ -36,15 +69,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['email'] = "Invalid email format.";
     }
 
-    if (!in_array($role, ['admin', 'user'])) {
+    if (!is_numeric($role_id)) {
         $errors['role'] = "Invalid role selected.";
     }
+
     /* ---- Duplicate Email Check ---- */
+
     if (empty($errors)) {
         $check = mysqli_prepare(
             $conn,
             "SELECT id FROM users WHERE email = ? AND id != ?"
         );
+
         mysqli_stmt_bind_param($check, "si", $email, $user_id);
         mysqli_stmt_execute($check);
         mysqli_stmt_store_result($check);
@@ -55,18 +91,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         mysqli_stmt_close($check);
     }
- 
-     /* ---- If No Errors → Update ---- */
+
+    /* ---- Prevent Self Role Downgrade ---- */
+
     if (empty($errors)) {
-        if ($user_id == $_SESSION['user_id'] && $role !== 'admin') {
-            $errors['role'] = "You cannot remove your own admin role.";
+        if ($user_id == $_SESSION['user_id'] && $role_id != $_SESSION['role_id']) {
+            $errors['role'] = "You cannot change your own role.";
         }
+    }
+
+    /* ---- Update If No Errors ---- */
+
+    if (empty($errors)) {
+
         $update = mysqli_prepare(
             $conn,
-            "UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?"
+            "UPDATE users SET name = ?, email = ?, role_id = ? WHERE id = ?"
         );
 
-        mysqli_stmt_bind_param($update, "sssi", $name, $email, $role, $user_id);
+        mysqli_stmt_bind_param($update, "ssii", $name, $email, $role_id, $user_id);
         mysqli_stmt_execute($update);
         mysqli_stmt_close($update);
 
@@ -76,29 +119,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+} else {
+
+    $name    = $user['name'];
+    $email   = $user['email'];
+    $role_id = $user['role_id'];
 }
-else {
-    
-    $name  = $user['name'];
-    $email = $user['email'];
-    $role  = $user['role'];
-}
-
-
-
 
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDIT USER</title>
+    <title>Edit User</title>
 </head>
 <body>
-    <form method = "post">
-        <label>Name:</label><br>
+
+<h2>Edit User</h2>
+
+<form method="POST">
+
+    <label>Name:</label><br>
     <input type="text" name="name" value="<?= htmlspecialchars($name) ?>">
     <span style="color:red"><?= $errors['name'] ?? '' ?></span>
     <br><br>
@@ -109,9 +150,13 @@ else {
     <br><br>
 
     <label>Role:</label><br>
-    <select name="role">
-        <option value="user" <?= $role === 'user' ? 'selected' : '' ?>>User</option>
-        <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Admin</option>
+    <select name="role_id">
+        <?php while ($role = mysqli_fetch_assoc($roles_result)) : ?>
+            <option value="<?= (int)$role['id']; ?>"
+                <?= $role_id == $role['id'] ? 'selected' : '' ?>>
+                <?= htmlspecialchars($role['name']); ?>
+            </option>
+        <?php endwhile; ?>
     </select>
     <span style="color:red"><?= $errors['role'] ?? '' ?></span>
     <br><br>
@@ -122,5 +167,6 @@ else {
 
 <br>
 <a href="list.php">Back to List</a>
+
 </body>
 </html>

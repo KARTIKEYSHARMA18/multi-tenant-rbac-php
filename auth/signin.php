@@ -20,7 +20,7 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
   
     if(empty($errors)){
         require_once __DIR__ .'/../config/db.php';
-        $checkuser = mysqli_prepare($conn, "SELECT id, email, password, role FROM users WHERE email = ?");
+        $checkuser = mysqli_prepare($conn, "SELECT id, email, password, role_id FROM users WHERE email = ?");
         mysqli_stmt_bind_param($checkuser, "s", $email);
         mysqli_stmt_execute($checkuser);
         $result = mysqli_stmt_get_result($checkuser);
@@ -38,13 +38,30 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
 
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_email'] = $user['email'];
-                $_SESSION['user_role']=$user['role'];
-                if($user['role']==='admin'){
-                    header("Location: ../admin/admin.php");
+                $_SESSION['role_id'] = $user['role_id'];
+
+                /* Fetch Permissions */
+
+                $sql = "
+                SELECT p.name 
+                FROM permissions p
+                JOIN role_permissions rp ON p.id = rp.permission_id
+                WHERE rp.role_id = ?";
+
+                $stmt = mysqli_prepare($conn, $sql);
+                mysqli_stmt_bind_param($stmt, "i", $user['role_id']);
+                mysqli_stmt_execute($stmt);
+                $permResult = mysqli_stmt_get_result($stmt);
+
+                $permissions = [];
+
+                while ($row = mysqli_fetch_assoc($permResult)) {
+                $permissions[] = $row['name'];
                 }
-                else{
-                    header("location: ../dashboard.php");    
-                }
+
+                $_SESSION['permissions'] = $permissions;
+                
+                header("Location: ../dashboard.php");
                 exit;
             }
             
