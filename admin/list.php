@@ -4,18 +4,18 @@ session_start();
 require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
-/* -------------------------
+/* 
    1. Permission Enforcement
--------------------------- */
+*/
 
 if (!hasPermission('view_users')) {
     die("Unauthorized Access");
 }
 
-/* -------------------------
+/* 
    2. Fetch Users With Role Name
    (No old role column usage)
--------------------------- */
+ */
 
 $sql = "
     SELECT users.id, users.name, users.email, roles.name AS role_name
@@ -54,7 +54,9 @@ if (!$result) {
     <p style="color:red;">
         <?php
         if ($_GET['error'] === 'selfdelete') echo "You cannot delete yourself.";
+        if ($_GET['error'] === 'protected') echo "You cannot delete another admin (Not allowed)";
         if ($_GET['error'] === 'notfound') echo "User not found.";
+        if($_GET['error'] === 'protected2') echo "You cannot edit another admin";
         ?>
     </p>
 <?php endif; ?>

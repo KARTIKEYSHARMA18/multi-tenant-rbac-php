@@ -4,17 +4,13 @@ session_start();
 require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
-/* -------------------------
-   1. Permission Enforcement
--------------------------- */
+/*  1. Permission Enforcement  */
 
 if (!hasPermission('edit_user')) {
     die("Unauthorized Access");
 }
 
-/* -------------------------
-   2. Validate ID
--------------------------- */
+/*  2. Validate ID */
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: list.php");
@@ -23,9 +19,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $user_id = (int) $_GET['id'];
 
-/* -------------------------
-   3. Fetch User
--------------------------- */
+/*  3. Fetch User */
 
 $stmt = mysqli_prepare(
     $conn,
@@ -38,18 +32,30 @@ $result = mysqli_stmt_get_result($stmt);
 $user = mysqli_fetch_assoc($result);
 mysqli_stmt_close($stmt);
 
+/*  Check User Exists BEFORE Using It  */
+
 if (!$user) {
     header("Location: list.php?error=notfound");
     exit;
 }
 
-/* -------------------------
-   4. Fetch All Roles
--------------------------- */
+$target_role_id  = (int) $user['role_id'];
+$current_role_id = (int) $_SESSION['role_id'];
+
+/*  Prevent Editing Another Admin  */
+
+if ($target_role_id === $current_role_id && $user['id'] !== $_SESSION['user_id']) {
+    header("Location: list.php?error=protected2");
+    exit;
+}
+
+/*  4. Fetch Roles  */
 
 $roles_result = mysqli_query($conn, "SELECT id, name FROM roles ORDER BY id ASC");
 
 $errors = [];
+
+/*  5. Handle POST  */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -57,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email   = trim($_POST['email'] ?? '');
     $role_id = $_POST['role_id'] ?? '';
 
-    /* ---- Validation ---- */
+    /*  Validation */
 
     if ($name === '') {
         $errors['name'] = "Name is required.";
@@ -73,7 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['role'] = "Invalid role selected.";
     }
 
-    /* ---- Duplicate Email Check ---- */
+    $role_id = (int) $role_id;
+
+    /*  Duplicate Email Check  */
 
     if (empty($errors)) {
         $check = mysqli_prepare(
@@ -92,15 +100,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mysqli_stmt_close($check);
     }
 
-    /* ---- Prevent Self Role Downgrade ---- */
+    /*  Prevent Self Role Change  */
 
     if (empty($errors)) {
-        if ($user_id == $_SESSION['user_id'] && $role_id != $_SESSION['role_id']) {
+        if ($user_id === (int) $_SESSION['user_id'] && $role_id !== $current_role_id) {
             $errors['role'] = "You cannot change your own role.";
         }
     }
 
-    /* ---- Update If No Errors ---- */
+    /*  Prevent Promoting Others to Admin  */
+
+    if (empty($errors)) {
+        if ($role_id === $current_role_id && $user_id !== (int) $_SESSION['user_id']) {
+            $errors['role'] = "You cannot assign admin role to another user.";
+        }
+    }
+
+    //update
 
     if (empty($errors)) {
 
@@ -113,8 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mysqli_stmt_execute($update);
         mysqli_stmt_close($update);
 
-        mysqli_close($conn);
-
         header("Location: list.php?success=updated");
         exit;
     }
@@ -125,7 +139,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email   = $user['email'];
     $role_id = $user['role_id'];
 }
-
 ?>
 
 <!DOCTYPE html>
