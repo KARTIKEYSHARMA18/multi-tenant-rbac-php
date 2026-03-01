@@ -26,7 +26,12 @@ if (!hasPermission('view_users')) {
 <a href="../dashboard.php">Back to Dashboard</a>
 <br><br>
 
-<a href="../auth/logout.php">Logout</a>
+<a href="../auth/logout.php">Logout</a><br><br>
 
+<?php if (hasPermission('create_user')): ?>
+    <a href="create_user.php">
+        <button>create a new user?</button>
+    </a>
+<?php endif; ?>
 </body>
 </html>
