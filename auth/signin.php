@@ -20,7 +20,7 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
   
     if(empty($errors)){
         require_once __DIR__ .'/../config/db.php';
-        $checkuser = mysqli_prepare($conn, "SELECT id, email, password, role_id FROM users WHERE email = ?");
+        $checkuser = mysqli_prepare($conn, "SELECT id, email, password, role_id, tenant_id FROM users WHERE email = ?");
         mysqli_stmt_bind_param($checkuser, "s", $email);
         mysqli_stmt_execute($checkuser);
         $result = mysqli_stmt_get_result($checkuser);
@@ -39,6 +39,8 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_email'] = $user['email'];
                 $_SESSION['role_id'] = $user['role_id'];
+                $_SESSION['tenant_id'] = $user['tenant_id'];
+
 
                 /* Fetch Permissions */
 

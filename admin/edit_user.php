@@ -5,7 +5,11 @@ require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
 /*  1. Permission Enforcement  */
+if (!isset($_SESSION['tenant_id'])) {
+    die("Tenant not found in session.");
+}
 
+$tenant_id = $_SESSION['tenant_id'];
 if (!hasPermission('edit_user')) {
     die("Unauthorized Access");
 }
@@ -23,10 +27,12 @@ $user_id = (int) $_GET['id'];
 
 $stmt = mysqli_prepare(
     $conn,
-    "SELECT id, name, email, role_id FROM users WHERE id = ?"
+    "SELECT id, name, email, role_id 
+    FROM users 
+    WHERE id = ? AND tenant_id = ?"
 );
 
-mysqli_stmt_bind_param($stmt, "i", $user_id);
+mysqli_stmt_bind_param($stmt, "ii", $user_id, $tenant_id);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 $user = mysqli_fetch_assoc($result);
@@ -86,10 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         $check = mysqli_prepare(
             $conn,
-            "SELECT id FROM users WHERE email = ? AND id != ?"
+            "SELECT id FROM users 
+            WHERE email = ? 
+            AND id !=  ?
+            AND tenant_id = ?"
         );
 
-        mysqli_stmt_bind_param($check, "si", $email, $user_id);
+        mysqli_stmt_bind_param($check, "sii", $email, $user_id, $tenant_id);
         mysqli_stmt_execute($check);
         mysqli_stmt_store_result($check);
 
@@ -122,10 +131,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $update = mysqli_prepare(
             $conn,
-            "UPDATE users SET name = ?, email = ?, role_id = ? WHERE id = ?"
+            "UPDATE users 
+            SET name = ?, email = ?, role_id = ? 
+            WHERE id = ? AND tenant_id = ?"
         );
 
-        mysqli_stmt_bind_param($update, "ssii", $name, $email, $role_id, $user_id);
+        mysqli_stmt_bind_param($update, "ssiii", $name, $email, $role_id, $user_id, $tenant_id);
         mysqli_stmt_execute($update);
         mysqli_stmt_close($update);
 

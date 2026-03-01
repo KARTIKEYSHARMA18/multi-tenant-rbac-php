@@ -1,0 +1,6 @@
+CREATE TABLE tenants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO tenants (name) VALUES ('Default Company');

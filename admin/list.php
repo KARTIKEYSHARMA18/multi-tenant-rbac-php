@@ -12,6 +12,10 @@ if (!hasPermission('view_users')) {
     die("Unauthorized Access");
 }
 
+if (!isset($_SESSION['tenant_id'])) {
+    die("Tenant not found in session.");
+}
+$tenant_id = $_SESSION['tenant_id'];
 /* 
    2. Fetch Users With Role Name
    (No old role column usage)
@@ -21,10 +25,14 @@ $sql = "
     SELECT users.id, users.name, users.email, roles.name AS role_name
     FROM users
     JOIN roles ON users.role_id = roles.id
+    WHERE users.tenant_id = ?
     ORDER BY users.id ASC
 ";
 
-$result = mysqli_query($conn, $sql);
+$stmt = mysqli_prepare($conn, $sql);
+mysqli_stmt_bind_param($stmt, "i", $tenant_id);
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
 
 if (!$result) {
     die("Database Error");
@@ -107,6 +115,7 @@ if (!$result) {
 
 <br>
 <a href="admin.php">Back to admin page</a>
+
 
 </body>
 </html>
