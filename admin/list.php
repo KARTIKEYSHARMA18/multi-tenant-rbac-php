@@ -1,6 +1,5 @@
 <?php
-session_start();
-
+require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
@@ -8,14 +7,9 @@ require_once __DIR__ . '/../config/db.php';
    1. Permission Enforcement
 */
 
-if (!hasPermission('view_users')) {
-    die("Unauthorized Access");
-}
-
-if (!isset($_SESSION['tenant_id'])) {
-    die("Tenant not found in session.");
-}
+requirePermission('view_users');
 $tenant_id = $_SESSION['tenant_id'];
+
 /* 
    2. Fetch Users With Role Name
    (No old role column usage)

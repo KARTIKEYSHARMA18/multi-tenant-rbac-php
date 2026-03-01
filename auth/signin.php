@@ -39,7 +39,7 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
                 $errors['login'] = 'Invalid email or password';
             }
             else{
-
+                session_regenerate_id(true);
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_email'] = $user['email'];
                 $_SESSION['role_id'] = $user['role_id'];

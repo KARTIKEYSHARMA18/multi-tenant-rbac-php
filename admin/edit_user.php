@@ -1,18 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/auth_check.php';
 
 require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
 /*  1. Permission Enforcement  */
-if (!isset($_SESSION['tenant_id'])) {
-    die("Tenant not found in session.");
-}
-
+requirePermission('edit_user');
 $tenant_id = $_SESSION['tenant_id'];
-if (!hasPermission('edit_user')) {
-    die("Unauthorized Access");
-}
+
 
 /*  2. Validate ID */
 

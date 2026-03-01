@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/permission.php';
 require_once __DIR__ . '/config/db.php';
 
 $user_id = $_SESSION['user_id'];
-
+$tenant_id = $_SESSION['tenant_id'];
 /* -------------------------
    Fetch User + Role Name
 -------------------------- */
@@ -14,10 +14,10 @@ $stmt = mysqli_prepare(
     "SELECT users.name, users.email, roles.name AS role_name
      FROM users
      JOIN roles ON users.role_id = roles.id
-     WHERE users.id = ?"
+     WHERE users.id = ? AND users.tenant_id = ?"
 );
 
-mysqli_stmt_bind_param($stmt, "i", $user_id);
+mysqli_stmt_bind_param($stmt, "ii", $user_id, $tenant_id);
 mysqli_stmt_execute($stmt);
 
 $result = mysqli_stmt_get_result($stmt);

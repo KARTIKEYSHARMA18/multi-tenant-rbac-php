@@ -1,11 +1,9 @@
 <?php 
-session_start();
+require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/permission.php';
 require_once __DIR__ . '/../config/db.php';
 
-if (!hasPermission('create_user')) {
-    die('Unauthorized access');
-}
+requirePermission('view_users');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -16,15 +14,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tenant_id = $_SESSION['tenant_id'];
 
     if (empty($name) || empty($email) || empty($passwordRaw)) {
-        die("All fields are required.");
+        http_response_code(400);
+        exit("All fields are required.");
     }
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        die("Invalid email format.");
+        http_response_code(400);
+        exit("Invalid email format.");
     }
 
     if (strlen($passwordRaw) < 6) {
-        die("Password must be at least 6 characters.");
+         http_response_code(400);
+        exit("Password must be at least 6 characters.");
     }
 
     $roleCheckSql = "SELECT id FROM roles WHERE id = ? AND name != 'Admin'";
@@ -34,25 +35,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $resultRole = mysqli_stmt_get_result($stmtRole);
 
     if (mysqli_num_rows($resultRole) === 0) {
-        die("Invalid role selection.");
+        mysqli_stmt_close($stmtRole);
+        http_response_code(400);
+        exit("Invalid role selection.");
     }
-
+    mysqli_stmt_close($stmtRole);
     $password = password_hash($passwordRaw, PASSWORD_DEFAULT);
 
     $sql = "INSERT INTO users (name, email, password, role_id, tenant_id) VALUES (?, ?, ?, ?, ?)";
     $stmt = mysqli_prepare($conn, $sql);
 
     if (!$stmt) {
-        die("Prepare failed: " . mysqli_error($conn));
+        http_response_code(500);
+        exit("Prepare failed.");
     }
 
     mysqli_stmt_bind_param($stmt, "sssii", $name, $email, $password, $role_id, $tenant_id);
 
-    if (mysqli_stmt_execute($stmt)) {
-        echo "User created successfully.";
-    } else {
-        echo "Error: " . mysqli_stmt_error($stmt);
+    if (!mysqli_stmt_execute($stmt)) {
+        http_response_code(500);
+        exit("Insert failed.");
     }
+    mysqli_stmt_close($stmt);
+    mysqli_close($conn);
+
+    header("Location: list.php");
+    exit;
 }
 ?>
 
