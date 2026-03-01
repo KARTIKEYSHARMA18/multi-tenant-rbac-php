@@ -2,6 +2,10 @@
 session_start();
 $errors = [];
 $email = $password = "";
+if (isset($_SESSION['user_id'])) {
+    header("Location: dashboard.php");
+    exit;
+}
 if($_SERVER['REQUEST_METHOD']=="POST"){
     $email =trim($_POST['email']) ?? '';
     $password=trim($_POST['password']) ?? '';
@@ -63,11 +67,15 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
 
                 $_SESSION['permissions'] = $permissions;
                 
-                header("Location: ../dashboard.php");
+               if (in_array('view_users', $_SESSION['permissions'])) {
+                header("Location: ../admin/admin.php");
+                } 
+                else{
+                    header("Location: ../dashboard.php");
+                    }
                 exit;
+                }
             }
-            
-        }
         mysqli_close($conn);
     }
 }
